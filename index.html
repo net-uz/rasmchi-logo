@@ -128,6 +128,7 @@
             <img id="removedImg" alt="Fonsiz rasm" class="w-full object-contain max-h-[80vh] rounded-xl border border-slate-800" crossorigin="anonymous" />
           </div>
           <div id="meta" class="text-sm text-slate-400 break-all"></div>
+          <div id="promptMeta" class="p-3 rounded-lg bg-slate-950 border border-slate-700 text-sm text-slate-300 hidden"></div>
 
           <div class="space-y-2">
             <p class="text-sm text-slate-400">Tez o'zgarishlar (bitta bosish bilan):</p>
@@ -168,16 +169,31 @@
 
       <!-- Colab tab -->
       <section id="tab-colab" class="hidden space-y-5">
-        <p class="text-sm text-slate-400">
-          Agar o'zingizning FLUX pipeline'ingizni (step bilan) Colab'da ishga tushirgan bo'lsangiz, Gradio public URL shu yerga kiriting. Sayt o'sha URL'ni iframe orqali ko'rsatadi.
-        </p>
+        <div class="p-4 rounded-lg bg-blue-950/20 border border-blue-900/50 space-y-3">
+          <h3 class="font-semibold text-blue-200">Yuqori sifatli FLUX (Colab)</h3>
+          <ol class="list-decimal list-inside text-sm text-slate-300 space-y-1">
+            <li>Pastdagi "Colab'ni ochish" tugmasi orqali notebook'ni Google Colab'ga yuklang.</li>
+            <li>GPU'ni yoqing va barcha cell'arni ishga tushiring.</li>
+            <li>Hosil bo'lgan <code>gradio.live</code> yoki public URL'ni quyidagi maydonga kiring.</li>
+            <li>Natija shu oynada ko'rinadi.</li>
+          </ol>
+          <a href="https://colab.research.google.com/github/net-uz/rasmchi-logo/blob/main/Rasmchi_FLUX_Colab.ipynb" target="_blank" class="inline-block px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 font-medium transition text-sm">Colab'ni ochish</a>
+        </div>
+
+        <div class="space-y-2">
+          <label for="colabStyle" class="block text-sm font-medium text-slate-300">Uslub (o'zbekcha)</label>
+          <textarea id="colabStyle" rows="2" placeholder="qora fon, kumushrang metall harflar" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-4 py-2.5"></textarea>
+          <button onclick="translateColabStyle()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm">Uslubni inglizchaga tarjima qilish</button>
+          <div id="colabStyleEn" class="hidden p-3 rounded-lg bg-slate-950 border border-slate-700 text-sm text-slate-300"></div>
+        </div>
+
         <div class="flex gap-2">
           <input type="url" id="colabUrl" placeholder="https://xxxx.gradio.live" class="flex-1 rounded-lg bg-slate-950 border border-slate-700 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500" />
           <button onclick="loadColab()" class="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 font-medium transition">Yuklash</button>
         </div>
         <div id="colabError" class="hidden p-3 rounded-lg bg-red-950/40 border border-red-800 text-red-200 text-sm"></div>
         <div class="rounded-xl overflow-hidden border border-slate-800 bg-slate-950 aspect-video">
-          <iframe id="colabFrame" class="w-full h-full min-h-[420px]" title="Colab rasm" src="" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+          <iframe id="colabFrame" class="w-full h-full min-h-[420px]" title="Colab rasm" src="" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" allow="camera"></iframe>
         </div>
       </section>
     </div>
@@ -264,6 +280,10 @@
       document.getElementById('suggestionsBox').classList.add('hidden');
       document.getElementById('suggestionsList').classList.add('hidden');
       document.getElementById('suggestionsList').innerHTML = '';
+      document.getElementById('promptMeta').classList.add('hidden');
+      document.getElementById('promptMeta').textContent = '';
+      document.getElementById('colabStyleEn').classList.add('hidden');
+      document.getElementById('colabStyleEn').textContent = '';
       document.getElementById('fileStatus').textContent = 'Rasmni tanlang; avtomatik yuklanadi.';
       clearError();
       updateMode();
@@ -407,7 +427,10 @@
         img.onload = () => { loader.classList.add('hidden'); };
         downloadBtn.disabled = false;
         document.getElementById('meta').innerHTML =
-          `<strong>Prompt:</strong> ${promptText}<br/><strong>Seed:</strong> ${seed}<br/><strong>Model:</strong> ${model}${sourceUrl ? '<br/><strong>Manba rasm:</strong> ' + sourceUrl : ''}`;
+          `<strong>Seed:</strong> ${seed} · <strong>Model:</strong> ${model}${sourceUrl ? '<br/><strong>Manba rasm:</strong> ' + sourceUrl : ''}`;
+        const promptMeta = document.getElementById('promptMeta');
+        promptMeta.textContent = 'Yuborilgan inglizcha prompt: ' + promptText;
+        promptMeta.classList.remove('hidden');
         document.getElementById('suggestionsBox').classList.remove('hidden');
       } catch (e) {
         loader.classList.add('hidden');
@@ -609,6 +632,25 @@
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
+    }
+
+    async function translateColabStyle() {
+      const styleUz = document.getElementById('colabStyle').value.trim();
+      if (!styleUz) {
+        document.getElementById('colabError').textContent = 'Iltimos, avval uslub kiriting.';
+        document.getElementById('colabError').classList.remove('hidden');
+        return;
+      }
+      try {
+        const styleEn = await translateToEn(styleUz);
+        const box = document.getElementById('colabStyleEn');
+        box.textContent = 'Inglizcha uslub: ' + styleEn;
+        box.classList.remove('hidden');
+        document.getElementById('colabError').classList.add('hidden');
+      } catch (e) {
+        document.getElementById('colabError').textContent = 'Tarjima xatosi: ' + e.message;
+        document.getElementById('colabError').classList.remove('hidden');
+      }
     }
 
     function loadColab() {
