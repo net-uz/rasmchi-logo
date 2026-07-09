@@ -16,34 +16,50 @@
       animation: spin 1s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .suggestion { border: 1px solid #334155; }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
   <main class="max-w-3xl mx-auto p-4 sm:p-6 lg:p-8">
     <header class="mb-8 text-center">
       <h1 class="text-3xl sm:text-4xl font-bold text-purple-400">Rasmchi AI</h1>
-      <p class="text-slate-400 mt-1">Matn + uslub kiriting, avtomatik tarjima qilib, tezda logo yasang</p>
+      <p class="text-slate-400 mt-1">Matn, uslub va rasm yuklab, avtomatik tarjima bilan logo yasang</p>
     </header>
 
     <div class="bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-2xl border border-slate-800">
       <!-- Tab buttons -->
-      <div class="flex gap-2 mb-6" role="tablist" aria-label="Backend tanlash">
+      <div class="flex gap-2 mb-6" role="tablist" aria-label="Rejim tanlash">
         <button id="btn-free" class="flex-1 py-2 rounded-lg font-medium transition tab-active" onclick="switchTab('free')">Bepul API</button>
         <button id="btn-colab" class="flex-1 py-2 rounded-lg font-medium transition tab-inactive" onclick="switchTab('colab')">Mening Colab'im</button>
       </div>
 
       <!-- Free API tab -->
       <section id="tab-free" class="space-y-5">
-        <form id="logoForm" class="space-y-5" onsubmit="event.preventDefault(); generateLogo();">
+        <form id="logoForm" class="space-y-5" onsubmit="event.preventDefault(); generateImage();">
+
           <div>
+            <label for="mode" class="block text-sm font-medium text-slate-300 mb-1">Rejim</label>
+            <select id="mode" onchange="updateMode()" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-4 py-2.5">
+              <option value="new">Yangi rasm yaratish</option>
+              <option value="edit">Yuklangan/joriy rasmni qayta ishlash</option>
+            </select>
+          </div>
+
+          <div id="textWrap">
             <label for="text" class="block text-sm font-medium text-slate-300 mb-1">Logotipda yoziladigan matn</label>
             <input type="text" id="text" value="Akobir" placeholder="Masalan: Akobir" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500" />
           </div>
 
           <div>
-            <label for="style" class="block text-sm font-medium text-slate-300 mb-1">Uslub (o'zbekcha)</label>
-            <textarea id="style" rows="3" placeholder="qora fon, kumushrang metall harflar, dumaloq emblema, hashamatli" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
-            <p class="text-xs text-slate-500 mt-1">Uslub avtomatik tarjima qilinadi.</p>
+            <label id="promptLabel" for="prompt" class="block text-sm font-medium text-slate-300 mb-1">Uslub (o'zbekcha)</label>
+            <textarea id="prompt" rows="3" placeholder="qora fon, kumushrang metall harflar, dumaloq emblema, hashamatli" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
+            <p class="text-xs text-slate-500 mt-1">Matn avtomatik tarjima qilinadi.</p>
+          </div>
+
+          <div>
+            <label for="imageFile" class="block text-sm font-medium text-slate-300 mb-1">Boshqa rasm (ixtiyoriy)</label>
+            <input type="file" id="imageFile" accept="image/*" onchange="handleFileSelect()" class="block w-full text-sm text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700" />
+            <p id="fileStatus" class="text-xs text-slate-500 mt-1">Rasmni tanlang; avtomatik yuklanadi.</p>
           </div>
 
           <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -68,6 +84,11 @@
             </div>
           </div>
 
+          <div>
+            <label for="negative" class="block text-sm font-medium text-slate-300 mb-1">Ungi yo'q narsalar (negative prompt, ixtiyoriy)</label>
+            <input type="text" id="negative" placeholder="extra fingers, malformed text, blurry" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-4 py-2.5" />
+          </div>
+
           <div class="flex flex-wrap gap-5 text-sm">
             <label class="inline-flex items-center gap-2 cursor-pointer">
               <input type="checkbox" id="enhance" class="w-4 h-4 rounded accent-purple-500" />
@@ -83,19 +104,28 @@
             </label>
           </div>
 
-          <button type="submit" class="w-full py-3 rounded-lg bg-purple-600 hover:bg-purple-500 active:bg-purple-700 font-semibold transition" id="generateBtn">Logo yaratish</button>
+          <button type="submit" class="w-full py-3 rounded-lg bg-purple-600 hover:bg-purple-500 active:bg-purple-700 font-semibold transition" id="generateBtn">Rasm yaratish</button>
         </form>
 
         <!-- Output -->
-        <div id="output" class="hidden space-y-3 border-t border-slate-800 pt-5">
+        <div id="output" class="hidden space-y-4 border-t border-slate-800 pt-5">
           <div class="relative rounded-xl overflow-hidden bg-slate-950 border border-slate-800">
-            <img id="resultImg" alt="Yaratilgan logo" class="w-full object-contain max-h-[80vh]" crossorigin="anonymous" />
+            <img id="resultImg" alt="Yaratilgan rasm" class="w-full object-contain max-h-[80vh]" crossorigin="anonymous" />
             <div id="loader" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/90 z-10 hidden">
               <div class="spinner mb-4"></div>
-              <p class="text-slate-300">Rasm yaratilmoqda…</p>
+              <p class="text-slate-300" id="loaderText">Rasm yaratilmoqda…</p>
             </div>
           </div>
           <div id="meta" class="text-sm text-slate-400 break-all"></div>
+
+          <div id="suggestionsBox" class="hidden space-y-3">
+            <div class="flex gap-2">
+              <button type="button" onclick="getSuggestions()" class="flex-1 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 transition text-sm">Takliflarni yuklash</button>
+              <button type="button" onclick="reprocessCurrent()" class="flex-1 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 transition text-sm">Joriy rasmni qayta ishlash</button>
+            </div>
+            <div id="suggestionsList" class="space-y-2 hidden"></div>
+          </div>
+
           <div class="flex gap-3">
             <button id="downloadBtn" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 transition text-sm" disabled>Yuklab olish</button>
             <button onclick="resetForm()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 transition text-sm">Tozalash</button>
@@ -116,18 +146,22 @@
         </div>
         <div id="colabError" class="hidden p-3 rounded-lg bg-red-950/40 border border-red-800 text-red-200 text-sm"></div>
         <div class="rounded-xl overflow-hidden border border-slate-800 bg-slate-950 aspect-video">
-          <iframe id="colabFrame" class="w-full h-full min-h-[420px]" title="Colab logo" src="" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+          <iframe id="colabFrame" class="w-full h-full min-h-[420px]" title="Colab rasm" src="" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
         </div>
       </section>
     </div>
 
-    <footer class="mt-8 text-center text-xs text-slate-500">
-      <p>Foydalanilayotgan resurslar: MyMemory (o'zbek-ingles tarjima) + Pollinations.AI (FLUX/rasm yaratish).</p>
-      <p>Colab'ni doimiy server sifatida ishlatib bo'lmaydi. Unda o'z FLUX modelingizni ishlatsangiz, uning public URL'sini "Mening Colab'im" qoriga qo'shishingiz mumkin.</p>
+    <footer class="mt-8 text-center text-xs text-slate-500 space-y-1">
+      <p>Foydalanilayotgan resurslar: MyMemory (o'zbek-ingles tarjima) + Pollinations.AI (rasm yaratish) + EasySend (rasm yuklash).</p>
+      <p>Colab'ni doimiy server sifatida ishlatib bo'lmaydi. Avtomatik ravishda rasmdagi xatolarni topish haqiyqatan ham rasmni ko'rish qobiliyatiga ega AI (vision model) talab qiladi.</p>
     </footer>
   </main>
 
   <script>
+    let uploadedImageUrl = '';
+    let currentImageUrl = '';
+    let currentBlobUrl = '';
+
     function switchTab(tab) {
       document.getElementById('tab-free').style.display = tab === 'free' ? 'block' : 'none';
       document.getElementById('tab-colab').style.display = tab === 'colab' ? 'block' : 'none';
@@ -142,17 +176,76 @@
     function setError(msg) {
       const err = document.getElementById('errorBox');
       err.textContent = msg;
-      err.classList.remove('hidden');
+      err.className = 'p-4 rounded-lg bg-red-950/40 border border-red-800 text-red-200 text-sm';
     }
     function clearError() { document.getElementById('errorBox').classList.add('hidden'); }
+    function setInfo(msg) {
+      const err = document.getElementById('errorBox');
+      err.textContent = msg;
+      err.classList.remove('hidden');
+      err.className = 'p-4 rounded-lg bg-blue-950/40 border border-blue-800 text-blue-200 text-sm';
+    }
+
+    function updateMode() {
+      const mode = document.getElementById('mode').value;
+      const textWrap = document.getElementById('textWrap');
+      const prompt = document.getElementById('prompt');
+      const label = document.getElementById('promptLabel');
+      const btn = document.getElementById('generateBtn');
+
+      if (mode === 'edit') {
+        textWrap.style.display = 'none';
+        label.textContent = 'O\'zgarish matni (o\'zbekcha)';
+        prompt.placeholder = 'masalan: quyoshni olib tashla, kostyum galstuk qo\'sh, ortiqcha barmoqlarni yashir';
+        btn.textContent = 'Rasmni qayta ishlash';
+      } else {
+        textWrap.style.display = 'block';
+        label.textContent = 'Uslub (o\'zbekcha)';
+        prompt.placeholder = 'qora fon, kumushrang metall harflar, dumaloq emblema, hashamatli';
+        btn.textContent = 'Rasm yaratish';
+      }
+    }
 
     function resetForm() {
       document.getElementById('logoForm').reset();
+      uploadedImageUrl = '';
+      currentImageUrl = '';
+      if (currentBlobUrl) { URL.revokeObjectURL(currentBlobUrl); currentBlobUrl = ''; }
       document.getElementById('output').classList.add('hidden');
+      document.getElementById('suggestionsBox').classList.add('hidden');
+      document.getElementById('suggestionsList').classList.add('hidden');
+      document.getElementById('suggestionsList').innerHTML = '';
+      document.getElementById('fileStatus').textContent = 'Rasmni tanlang; avtomatik yuklanadi.';
       clearError();
+      updateMode();
     }
 
-    async function translateStyle(text) {
+    async function handleFileSelect() {
+      const input = document.getElementById('imageFile');
+      const status = document.getElementById('fileStatus');
+      if (!input.files || input.files.length === 0) return;
+      const file = input.files[0];
+      status.textContent = `${file.name} yuklanmoqda…`;
+      try {
+        uploadedImageUrl = await uploadToEasySend(file);
+        status.textContent = `Yuklandi: ${file.name}`;
+      } catch (e) {
+        status.textContent = 'Yuklashda xatolik: ' + e.message;
+        uploadedImageUrl = '';
+      }
+    }
+
+    async function uploadToEasySend(file) {
+      const form = new FormData();
+      form.append('files[]', file);
+      const res = await fetch('https://easysend.co/api/v1/upload', { method: 'POST', body: form });
+      if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+      const data = await res.json();
+      if (!data.success || !data.files || !data.files[0]) throw new Error('Yuklash jarayonida xatolik');
+      return 'https://easysend.co' + data.files[0].download_url;
+    }
+
+    async function translateToEn(text) {
       if (!text || !text.trim()) return '';
       try {
         const q = encodeURIComponent(text.trim());
@@ -168,65 +261,170 @@
       return text.trim();
     }
 
-    async function generateLogo() {
+    function buildPrompt(text, styleEn, mode) {
+      if (mode === 'edit') {
+        const base = styleEn || 'improve quality, remove artifacts';
+        return text
+          ? `${base}. The logo text should be "${text}".`
+          : base;
+      }
+      if (text) {
+        return `professional logo design with the text "${text}", ${styleEn}, vector style, centered composition, clean background, high quality, sharp`;
+      }
+      return `professional logo design, ${styleEn}, vector style, centered composition, clean background, high quality, sharp`;
+    }
+
+    async function fetchImageWithRetry(url, onRetry) {
+      const delays = [3000, 6000, 10000];
+      let lastErr;
+      for (let attempt = 0; attempt <= delays.length; attempt++) {
+        try {
+          const res = await fetch(url, { mode: 'cors', redirect: 'follow' });
+          if (res.ok) {
+            const blob = await res.blob();
+            const ct = res.headers.get('content-type') || 'image/jpeg';
+            return { blob, contentType: ct };
+          }
+          if (res.status === 429) {
+            throw new Error(`Juda ko\'p so\'rov (429). ${attempt + 1}-urinish, biroz kuting…`);
+          }
+          throw new Error(`Server xatosi: ${res.status}`);
+        } catch (e) {
+          lastErr = e;
+          if (attempt < delays.length) {
+            if (onRetry) onRetry(e.message + ` Qayta urinilmoqda (${attempt + 2}/${delays.length + 1})…`);
+            await new Promise(r => setTimeout(r, delays[attempt]));
+          }
+        }
+      }
+      throw lastErr;
+    }
+
+    async function generateImage() {
       clearError();
+      const mode = document.getElementById('mode').value;
       const text = document.getElementById('text').value.trim();
-      const styleUz = document.getElementById('style').value.trim();
+      const promptUz = document.getElementById('prompt').value.trim();
       const w = parseInt(document.getElementById('width').value, 10) || 1024;
       const h = parseInt(document.getElementById('height').value, 10) || 1024;
       const seedInput = document.getElementById('seed').value.trim();
       const seed = seedInput ? parseInt(seedInput, 10) : Math.floor(Math.random() * 2147483647);
       const model = document.getElementById('model').value;
+      const negative = document.getElementById('negative').value.trim();
       const enhance = document.getElementById('enhance').checked;
       const nologo = document.getElementById('nologo').checked;
       const isPrivate = document.getElementById('private').checked;
 
       const output = document.getElementById('output');
-      const img = document.getElementById('resultImg');
       const loader = document.getElementById('loader');
-      const meta = document.getElementById('meta');
+      const loaderText = document.getElementById('loaderText');
+      const img = document.getElementById('resultImg');
       const downloadBtn = document.getElementById('downloadBtn');
+
+      let sourceUrl = uploadedImageUrl;
+      if (mode === 'edit' && !sourceUrl) {
+        if (currentImageUrl) {
+          sourceUrl = currentImageUrl;
+        } else {
+          setError(`Tahrirlash uchun rasm manbasi kerak: iltimos, fayl yuklang yoki avval yangi rasm yarating.`);
+          return;
+        }
+      }
 
       output.classList.remove('hidden');
       loader.classList.remove('hidden');
+      loaderText.textContent = 'Rasm yaratilmoqda…';
       downloadBtn.disabled = true;
+      document.getElementById('suggestionsBox').classList.add('hidden');
 
-      const styleEn = await translateStyle(styleUz);
-
-      const promptText = text
-        ? `professional logo design with the text "${text}", ${styleEn}, vector style, centered composition, clean background, high quality, sharp`
-        : `professional logo design, ${styleEn}, vector style, centered composition, clean background, high quality, sharp`;
+      const promptEn = await translateToEn(promptUz);
+      const promptText = buildPrompt(text, promptEn, mode);
 
       const encodedPrompt = encodeURIComponent(promptText);
-      const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${w}&height=${h}&seed=${seed}&model=${model}&nologo=${nologo}&enhance=${enhance}&private=${isPrivate}`;
+      let imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${w}&height=${h}&seed=${seed}&model=${model}&nologo=${nologo}&enhance=${enhance}&private=${isPrivate}`;
+      if (sourceUrl) {
+        imageUrl += `&image=${encodeURIComponent(sourceUrl)}`;
+      }
+      if (negative) {
+        imageUrl += `&negativePrompt=${encodeURIComponent(negative)}`;
+      }
 
-      img.src = imageUrl;
-      img.onload = () => {
-        loader.classList.add('hidden');
+      try {
+        const result = await fetchImageWithRetry(imageUrl, (msg) => { loaderText.textContent = msg; });
+        if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
+        currentBlobUrl = URL.createObjectURL(result.blob);
+        currentImageUrl = imageUrl;
+        img.src = currentBlobUrl;
+        img.onload = () => { loader.classList.add('hidden'); };
         downloadBtn.disabled = false;
-        meta.innerHTML = `<strong>Prompt:</strong> ${promptText}<br/><strong>Seed:</strong> ${seed}<br/><strong>Model:</strong> ${model}`;
-      };
-      img.onerror = () => {
+        document.getElementById('meta').innerHTML =
+          `<strong>Prompt:</strong> ${promptText}<br/><strong>Seed:</strong> ${seed}<br/><strong>Model:</strong> ${model}${sourceUrl ? '<br/><strong>Manba rasm:</strong> ' + sourceUrl : ''}`;
+        document.getElementById('suggestionsBox').classList.remove('hidden');
+      } catch (e) {
         loader.classList.add('hidden');
-        setError(`Rasm yaratishda xatolik yuz berdi. Internetni tekshiring yoki boshqa style/seed sinab ko'ring.`);
-      };
+        setError(`Rasm yaratishda xatolik: ${e.message}. Internetni tekshiring yoki keyinroq qayta urinib ko'ring.`);
+      }
+    }
 
-      downloadBtn.onclick = async () => {
-        try {
-          const res = await fetch(imageUrl, { mode: 'cors' });
-          const blob = await res.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = blobUrl;
-          a.download = `rasmchi-logo-${seed}.jpg`;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          URL.revokeObjectURL(blobUrl);
-        } catch (e) {
-          window.open(imageUrl, '_blank');
-        }
-      };
+    function downloadImage() {
+      if (!currentBlobUrl) return;
+      const a = document.createElement('a');
+      a.href = currentBlobUrl;
+      a.download = `rasmchi-logo-${Date.now()}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    async function getSuggestions() {
+      const promptText = document.getElementById('prompt').value.trim();
+      if (!promptText) {
+        setError('Taklif olish uchun iltimos, yuqorida matn kiriting.');
+        return;
+      }
+      const list = document.getElementById('suggestionsList');
+      list.classList.remove('hidden');
+      list.innerHTML = '<p class="text-sm text-slate-400">Takliflar yuklanmoqda…</p>';
+
+      const req = `Given the prompt "${promptText}" for an AI logo image, list 3 short fix instructions to improve quality. Common problems: extra fingers, extra limbs, distorted or misspelled text, artifacts, blur, bad composition, wrong colors. Output each suggestion on a new line in English, no numbering, no extra text.`;
+      try {
+        const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(req)}`, { mode: 'cors' });
+        if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+        const text = await res.text();
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 5);
+        list.innerHTML = '';
+        lines.slice(0, 5).forEach((line, idx) => {
+          const div = document.createElement('div');
+          div.className = 'suggestion p-3 rounded-lg bg-slate-950 cursor-pointer hover:bg-slate-800 transition text-sm text-slate-300';
+          div.textContent = line;
+          div.onclick = () => applySuggestion(line);
+          list.appendChild(div);
+        });
+      } catch (e) {
+        list.innerHTML = `<p class="text-sm text-red-300">Taklif yuklashda xatolik: ${e.message}</p>`;
+      }
+    }
+
+    function applySuggestion(suggestion) {
+      document.getElementById('mode').value = 'edit';
+      updateMode();
+      document.getElementById('prompt').value = suggestion;
+      if (currentImageUrl) {
+        uploadedImageUrl = '';
+      }
+      generateImage();
+    }
+
+    function reprocessCurrent() {
+      if (!currentImageUrl) {
+        setError('Avval rasm yaratish kerak.');
+        return;
+      }
+      document.getElementById('mode').value = 'edit';
+      updateMode();
+      document.getElementById('prompt').focus();
+      uploadedImageUrl = '';
+      setInfo('Endi yuqoridagi "O\'zgarish matni" ga qanday o\'zgartirish kerakligini yozib, "Rasmni qayta ishlash" ni bosing.');
     }
 
     function loadColab() {
@@ -239,6 +437,10 @@
       }
       document.getElementById('colabFrame').src = url;
     }
+
+    document.getElementById('downloadBtn').onclick = downloadImage;
+
+    updateMode();
   </script>
 </body>
 </html>
