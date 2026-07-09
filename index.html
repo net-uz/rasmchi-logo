@@ -560,13 +560,24 @@
       applyBtn.classList.add('hidden');
       currentFixEn = '';
       try {
+        const u = new URL(backendUrl);
+        const user = u.username;
+        const pass = u.password;
+        u.username = '';
+        u.password = '';
+        const cleanUrl = u.toString().replace(/\/$/, '') + '/analyze';
+        const headers = {};
+        if (user || pass) {
+          headers['Authorization'] = 'Basic ' + btoa(unescape(encodeURIComponent(user + ':' + pass)));
+        }
         const form = new FormData();
         form.append('image_url', currentImageUrl);
         form.append('prompt_uz', document.getElementById('prompt').value.trim() || 'Rasmdagi muammolarni topib bering');
-        const res = await fetch(`${backendUrl.replace(/\/$/, '')}/analyze`, {
+        const res = await fetch(cleanUrl, {
           method: 'POST',
           body: form,
-          mode: 'cors'
+          mode: 'cors',
+          headers
         });
         if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
         const data = await res.json();
