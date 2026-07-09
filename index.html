@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rasmchi AI — Logo yaratish</title>
+  <meta name="description" content="Matn va uslub kiriting, bepul avtomatik tarjima + FLUX modeli orqali logo yengil oling." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .tab-active { background-color: #7c3aed; color: white; }
+    .tab-inactive { background-color: #1f2937; color: #d1d5db; }
+    .spinner {
+      width: 48px; height: 48px; border: 4px solid rgba(255,255,255,0.1);
+      border-left-color: #a855f7; border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+  <main class="max-w-3xl mx-auto p-4 sm:p-6 lg:p-8">
+    <header class="mb-8 text-center">
+      <h1 class="text-3xl sm:text-4xl font-bold text-purple-400">Rasmchi AI</h1>
+      <p class="text-slate-400 mt-1">Matn + uslub kiriting, avtomatik tarjima qilib, tezda logo yasang</p>
+    </header>
+
+    <div class="bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-2xl border border-slate-800">
+      <!-- Tab buttons -->
+      <div class="flex gap-2 mb-6" role="tablist" aria-label="Backend tanlash">
+        <button id="btn-free" class="flex-1 py-2 rounded-lg font-medium transition tab-active" onclick="switchTab('free')">Bepul API</button>
+        <button id="btn-colab" class="flex-1 py-2 rounded-lg font-medium transition tab-inactive" onclick="switchTab('colab')">Mening Colab'im</button>
+      </div>
+
+      <!-- Free API tab -->
+      <section id="tab-free" class="space-y-5">
+        <form id="logoForm" class="space-y-5" onsubmit="event.preventDefault(); generateLogo();">
+          <div>
+            <label for="text" class="block text-sm font-medium text-slate-300 mb-1">Logotipda yoziladigan matn</label>
+            <input type="text" id="text" value="Akobir" placeholder="Masalan: Akobir" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500" />
+          </div>
+
+          <div>
+            <label for="style" class="block text-sm font-medium text-slate-300 mb-1">Uslub (o'zbekcha)</label>
+            <textarea id="style" rows="3" placeholder="qora fon, kumushrang metall harflar, dumaloq emblema, hashamatli" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
+            <p class="text-xs text-slate-500 mt-1">Uslub avtomatik tarjima qilinadi.</p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div>
+              <label for="width" class="block text-sm font-medium text-slate-300 mb-1">Kenglik</label>
+              <input type="number" id="width" value="1024" min="256" max="1920" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2" />
+            </div>
+            <div>
+              <label for="height" class="block text-sm font-medium text-slate-300 mb-1">Balandlik</label>
+              <input type="number" id="height" value="1024" min="256" max="1920" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2" />
+            </div>
+            <div>
+              <label for="seed" class="block text-sm font-medium text-slate-300 mb-1">Seed</label>
+              <input type="number" id="seed" value="" placeholder="Tasodifiy" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2" />
+            </div>
+            <div>
+              <label for="model" class="block text-sm font-medium text-slate-300 mb-1">Model</label>
+              <select id="model" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2.5">
+                <option value="flux">FLUX (sifatli)</option>
+                <option value="turbo">Turbo (tez)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-5 text-sm">
+            <label class="inline-flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="enhance" class="w-4 h-4 rounded accent-purple-500" />
+              <span>Promptni yaxshilash</span>
+            </label>
+            <label class="inline-flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="nologo" checked class="w-4 h-4 rounded accent-purple-500" />
+              <span>Suv belgisisiz</span>
+            </label>
+            <label class="inline-flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="private" checked class="w-4 h-4 rounded accent-purple-500" />
+              <span>Yashirin (public emas)</span>
+            </label>
+          </div>
+
+          <button type="submit" class="w-full py-3 rounded-lg bg-purple-600 hover:bg-purple-500 active:bg-purple-700 font-semibold transition" id="generateBtn">Logo yaratish</button>
+        </form>
+
+        <!-- Output -->
+        <div id="output" class="hidden space-y-3 border-t border-slate-800 pt-5">
+          <div class="relative rounded-xl overflow-hidden bg-slate-950 border border-slate-800">
+            <img id="resultImg" alt="Yaratilgan logo" class="w-full object-contain max-h-[80vh]" crossorigin="anonymous" />
+            <div id="loader" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/90 z-10 hidden">
+              <div class="spinner mb-4"></div>
+              <p class="text-slate-300">Rasm yaratilmoqda…</p>
+            </div>
+          </div>
+          <div id="meta" class="text-sm text-slate-400 break-all"></div>
+          <div class="flex gap-3">
+            <button id="downloadBtn" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 transition text-sm" disabled>Yuklab olish</button>
+            <button onclick="resetForm()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 transition text-sm">Tozalash</button>
+          </div>
+        </div>
+
+        <div id="errorBox" class="hidden p-4 rounded-lg bg-red-950/40 border border-red-800 text-red-200 text-sm"></div>
+      </section>
+
+      <!-- Colab tab -->
+      <section id="tab-colab" class="hidden space-y-5">
+        <p class="text-sm text-slate-400">
+          Agar o'zingizning FLUX pipeline'ingizni (step bilan) Colab'da ishga tushirgan bo'lsangiz, Gradio public URL shu yerga kiriting. Sayt o'sha URL'ni iframe orqali ko'rsatadi.
+        </p>
+        <div class="flex gap-2">
+          <input type="url" id="colabUrl" placeholder="https://xxxx.gradio.live" class="flex-1 rounded-lg bg-slate-950 border border-slate-700 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500" />
+          <button onclick="loadColab()" class="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 font-medium transition">Yuklash</button>
+        </div>
+        <div id="colabError" class="hidden p-3 rounded-lg bg-red-950/40 border border-red-800 text-red-200 text-sm"></div>
+        <div class="rounded-xl overflow-hidden border border-slate-800 bg-slate-950 aspect-video">
+          <iframe id="colabFrame" class="w-full h-full min-h-[420px]" title="Colab logo" src="" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+        </div>
+      </section>
+    </div>
+
+    <footer class="mt-8 text-center text-xs text-slate-500">
+      <p>Foydalanilayotgan resurslar: MyMemory (o'zbek-ingles tarjima) + Pollinations.AI (FLUX/rasm yaratish).</p>
+      <p>Colab'ni doimiy server sifatida ishlatib bo'lmaydi. Unda o'z FLUX modelingizni ishlatsangiz, uning public URL'sini "Mening Colab'im" qoriga qo'shishingiz mumkin.</p>
+    </footer>
+  </main>
+
+  <script>
+    function switchTab(tab) {
+      document.getElementById('tab-free').style.display = tab === 'free' ? 'block' : 'none';
+      document.getElementById('tab-colab').style.display = tab === 'colab' ? 'block' : 'none';
+      document.getElementById('btn-free').className = tab === 'free'
+        ? 'flex-1 py-2 rounded-lg font-medium transition tab-active'
+        : 'flex-1 py-2 rounded-lg font-medium transition tab-inactive';
+      document.getElementById('btn-colab').className = tab === 'colab'
+        ? 'flex-1 py-2 rounded-lg font-medium transition tab-active'
+        : 'flex-1 py-2 rounded-lg font-medium transition tab-inactive';
+    }
+
+    function setError(msg) {
+      const err = document.getElementById('errorBox');
+      err.textContent = msg;
+      err.classList.remove('hidden');
+    }
+    function clearError() { document.getElementById('errorBox').classList.add('hidden'); }
+
+    function resetForm() {
+      document.getElementById('logoForm').reset();
+      document.getElementById('output').classList.add('hidden');
+      clearError();
+    }
+
+    async function translateStyle(text) {
+      if (!text || !text.trim()) return '';
+      try {
+        const q = encodeURIComponent(text.trim());
+        const url = `https://api.mymemory.translated.net/get?q=${q}&langpair=uz|en`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data && data.responseData && data.responseData.translatedText) {
+          return data.responseData.translatedText;
+        }
+      } catch (e) {
+        console.warn('Tarjima xatosi:', e);
+      }
+      return text.trim();
+    }
+
+    async function generateLogo() {
+      clearError();
+      const text = document.getElementById('text').value.trim();
+      const styleUz = document.getElementById('style').value.trim();
+      const w = parseInt(document.getElementById('width').value, 10) || 1024;
+      const h = parseInt(document.getElementById('height').value, 10) || 1024;
+      const seedInput = document.getElementById('seed').value.trim();
+      const seed = seedInput ? parseInt(seedInput, 10) : Math.floor(Math.random() * 2147483647);
+      const model = document.getElementById('model').value;
+      const enhance = document.getElementById('enhance').checked;
+      const nologo = document.getElementById('nologo').checked;
+      const isPrivate = document.getElementById('private').checked;
+
+      const output = document.getElementById('output');
+      const img = document.getElementById('resultImg');
+      const loader = document.getElementById('loader');
+      const meta = document.getElementById('meta');
+      const downloadBtn = document.getElementById('downloadBtn');
+
+      output.classList.remove('hidden');
+      loader.classList.remove('hidden');
+      downloadBtn.disabled = true;
+
+      const styleEn = await translateStyle(styleUz);
+
+      const promptText = text
+        ? `professional logo design with the text "${text}", ${styleEn}, vector style, centered composition, clean background, high quality, sharp`
+        : `professional logo design, ${styleEn}, vector style, centered composition, clean background, high quality, sharp`;
+
+      const encodedPrompt = encodeURIComponent(promptText);
+      const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${w}&height=${h}&seed=${seed}&model=${model}&nologo=${nologo}&enhance=${enhance}&private=${isPrivate}`;
+
+      img.src = imageUrl;
+      img.onload = () => {
+        loader.classList.add('hidden');
+        downloadBtn.disabled = false;
+        meta.innerHTML = `<strong>Prompt:</strong> ${promptText}<br/><strong>Seed:</strong> ${seed}<br/><strong>Model:</strong> ${model}`;
+      };
+      img.onerror = () => {
+        loader.classList.add('hidden');
+        setError('Rasm yaratishda xatolik yuz berdi. Internetni tekshiring yoki boshqa style/seed sinab ko'ring.');
+      };
+
+      downloadBtn.onclick = async () => {
+        try {
+          const res = await fetch(imageUrl, { mode: 'cors' });
+          const blob = await res.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = `rasmchi-logo-${seed}.jpg`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(blobUrl);
+        } catch (e) {
+          window.open(imageUrl, '_blank');
+        }
+      };
+    }
+
+    function loadColab() {
+      const url = document.getElementById('colabUrl').value.trim();
+      const err = document.getElementById('colabError');
+      err.classList.add('hidden');
+      if (!url) { err.textContent = 'Iltimos, Gradio/Colab URL kiriting.'; err.classList.remove('hidden'); return; }
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        err.textContent = 'URL http:// yoki https:// bilan boshlanishi kerak.'; err.classList.remove('hidden'); return;
+      }
+      document.getElementById('colabFrame').src = url;
+    }
+  </script>
+</body>
+</html>
