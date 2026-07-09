@@ -116,7 +116,22 @@
               <p class="text-slate-300" id="loaderText">Rasm yaratilmoqda…</p>
             </div>
           </div>
+          <div id="removedWrap" class="hidden space-y-2 border-t border-slate-800 pt-4">
+            <p class="text-sm text-slate-400">Fon olib tashlangan (PNG):</p>
+            <img id="removedImg" alt="Fonsiz rasm" class="w-full object-contain max-h-[80vh] rounded-xl border border-slate-800" crossorigin="anonymous" />
+          </div>
           <div id="meta" class="text-sm text-slate-400 break-all"></div>
+
+          <div class="space-y-2">
+            <p class="text-sm text-slate-400">Tez o'zgarishlar (bitta bosish bilan):</p>
+            <div class="flex flex-wrap gap-2">
+              <button type="button" onclick="quickFix('remove extra fingers, correct anatomy, clean hands')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 transition text-xs">Barmoqlarni to'g'rilash</button>
+              <button type="button" onclick="quickFix('remove the sun from the image')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 transition text-xs">Quyoshni olib tashlash</button>
+              <button type="button" onclick="quickFix('add a suit tie, formal style')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 transition text-xs">Galstuk qo'shish</button>
+              <button type="button" onclick="quickFix('improve quality, sharpen, remove blur and artifacts')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 transition text-xs">Sifatni oshirish</button>
+              <button type="button" onclick="removeBg()" class="px-3 py-1.5 rounded-lg bg-emerald-900 hover:bg-emerald-800 border border-emerald-800 text-emerald-100 transition text-xs">Fonni olib tashlash</button>
+            </div>
+          </div>
 
           <div id="suggestionsBox" class="hidden space-y-3">
             <div class="flex gap-2">
@@ -126,8 +141,9 @@
             <div id="suggestionsList" class="space-y-2 hidden"></div>
           </div>
 
-          <div class="flex gap-3">
+          <div class="flex gap-3 flex-wrap">
             <button id="downloadBtn" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 transition text-sm" disabled>Yuklab olish</button>
+            <button type="button" onclick="downloadRemoved()" id="downloadRemovedBtn" class="px-4 py-2 rounded-lg bg-emerald-900 hover:bg-emerald-800 border border-emerald-800 text-emerald-100 transition text-sm hidden" disabled>Fonsizni yuklab olish</button>
             <button onclick="resetForm()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 transition text-sm">Tozalash</button>
           </div>
         </div>
@@ -152,8 +168,8 @@
     </div>
 
     <footer class="mt-8 text-center text-xs text-slate-500 space-y-1">
-      <p>Foydalanilayotgan resurslar: MyMemory (o'zbek-ingles tarjima) + Pollinations.AI (rasm yaratish) + EasySend (rasm yuklash).</p>
-      <p>Colab'ni doimiy server sifatida ishlatib bo'lmaydi. Avtomatik ravishda rasmdagi xatolarni topish haqiyqatan ham rasmni ko'rish qobiliyatiga ega AI (vision model) talab qiladi.</p>
+      <p>Foydalanilayotgan resurslar: MyMemory (o'zbek-ingles tarjima) + Pollinations.AI (rasm yaratish/o'zgartirish) + EasySend (rasm yuklash) + IMG.LY (brauzerda fonni olib tashlash).</p>
+      <p>Colab'ni doimiy server sifatida ishlatib bo'lmaydi. Rasmdagi xatolarni rasmni ko'rib avtomatik topish va taklif qilish uchun backend+vision AI (Gemini/OpenAI) kerak bo'ladir.</p>
     </footer>
   </main>
 
@@ -161,6 +177,7 @@
     let uploadedImageUrl = '';
     let currentImageUrl = '';
     let currentBlobUrl = '';
+    let removedBlobUrl = '';
 
     function switchTab(tab) {
       document.getElementById('tab-free').style.display = tab === 'free' ? 'block' : 'none';
@@ -211,7 +228,12 @@
       uploadedImageUrl = '';
       currentImageUrl = '';
       if (currentBlobUrl) { URL.revokeObjectURL(currentBlobUrl); currentBlobUrl = ''; }
+      if (removedBlobUrl) { URL.revokeObjectURL(removedBlobUrl); removedBlobUrl = ''; }
       document.getElementById('output').classList.add('hidden');
+      document.getElementById('removedWrap').classList.add('hidden');
+      document.getElementById('removedImg').src = '';
+      document.getElementById('downloadRemovedBtn').classList.add('hidden');
+      document.getElementById('downloadRemovedBtn').disabled = true;
       document.getElementById('suggestionsBox').classList.add('hidden');
       document.getElementById('suggestionsList').classList.add('hidden');
       document.getElementById('suggestionsList').innerHTML = '';
@@ -374,6 +396,59 @@
       document.body.appendChild(a);
       a.click();
       a.remove();
+    }
+
+    async function removeBg() {
+      const img = document.getElementById('resultImg');
+      const removedImg = document.getElementById('removedImg');
+      const removedWrap = document.getElementById('removedWrap');
+      const loader = document.getElementById('loader');
+      const loaderText = document.getElementById('loaderText');
+      const downloadBtn = document.getElementById('downloadRemovedBtn');
+      if (!img.src) { setError('Avval rasm yaratish yoki yuklash kerak.'); return; }
+
+      loader.classList.remove('hidden');
+      loaderText.textContent = 'Fon olib tashlanmoqda (model 20-50MB yuklanadi, birinchi marta biroz kutadi)…';
+      try {
+        if (!window.removeBackground) {
+          const mod = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.8/+esm');
+          window.removeBackground = mod.default || mod.removeBackground;
+        }
+        const cfg = {
+          publicPath: 'https://staticimgly.com/@imgly/background-removal-data/1.5.8/dist/',
+          model: 'isnet_quint8',
+          output: { format: 'image/png' }
+        };
+        const blob = await window.removeBackground(img, cfg);
+        if (removedBlobUrl) URL.revokeObjectURL(removedBlobUrl);
+        removedBlobUrl = URL.createObjectURL(blob);
+        removedImg.src = removedBlobUrl;
+        removedWrap.classList.remove('hidden');
+        downloadBtn.disabled = false;
+        downloadBtn.classList.remove('hidden');
+      } catch (e) {
+        setError(`Fonni olib tashlashda xatolik: ${e.message}. Brauzer WebAssembly quollab-quvvatlamayotgan bo'lsa, yangi brauzer sinang.`);
+      } finally {
+        loader.classList.add('hidden');
+      }
+    }
+
+    function downloadRemoved() {
+      if (!removedBlobUrl) return;
+      const a = document.createElement('a');
+      a.href = removedBlobUrl;
+      a.download = `rasmchi-bez-fona-${Date.now()}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    function quickFix(enPrompt) {
+      document.getElementById('mode').value = 'edit';
+      updateMode();
+      document.getElementById('prompt').value = enPrompt;
+      if (currentImageUrl) uploadedImageUrl = '';
+      generateImage();
     }
 
     async function getSuggestions() {
