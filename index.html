@@ -125,6 +125,7 @@
           <div class="space-y-2">
             <p class="text-sm text-slate-400">Tez o'zgarishlar (bitta bosish bilan):</p>
             <div class="flex flex-wrap gap-2">
+              <button type="button" onclick="autoFix()" class="px-3 py-1.5 rounded-lg bg-purple-800 hover:bg-purple-700 border border-purple-700 text-purple-100 transition text-xs">Avtomatik yaxshilash</button>
               <button type="button" onclick="quickFix('remove extra fingers, correct anatomy, clean hands')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 transition text-xs">Barmoqlarni to'g'rilash</button>
               <button type="button" onclick="quickFix('remove the sun from the image')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 transition text-xs">Quyoshni olib tashlash</button>
               <button type="button" onclick="quickFix('add a suit tie, formal style')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 transition text-xs">Galstuk qo'shish</button>
@@ -441,6 +442,16 @@
       document.body.appendChild(a);
       a.click();
       a.remove();
+    }
+
+    function autoFix() {
+      document.getElementById('mode').value = 'edit';
+      updateMode();
+      document.getElementById('prompt').value = 'automatically fix visual defects, remove extra fingers and limbs, correct distorted text and anatomy, remove blur and artifacts, sharpen details, improve overall quality, balanced composition';
+      document.getElementById('negative').value = 'extra fingers, extra limbs, malformed text, distorted anatomy, blur, artifacts, noise, bad composition';
+      document.getElementById('enhance').checked = true;
+      if (currentImageUrl) uploadedImageUrl = '';
+      generateImage();
     }
 
     function quickFix(enPrompt) {
